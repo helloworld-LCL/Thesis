@@ -3,6 +3,7 @@ import os
 import random
 from pathlib import Path
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 import pandas as pd
 import numpy as np
@@ -73,8 +74,8 @@ def trunc_visualization(parameters):
     a, b, = (min - mu) / sig, (max - mu) / sig
     x_range = np.linspace(min - 1, max + 1, 1000)
     fig, ax = plt.subplots()
-    ax.plot(x_range, truncnorm.pdf(x_range, a, b, loc=mu, scale=sig), label='pdf')
-    ax.plot(x_range, truncnorm.cdf(x_range, a, b, loc=mu, scale=sig), label='cdf')
+    sns.lineplot(x_range, truncnorm.pdf(x_range, a, b, loc=mu, scale=sig), label='pdf')
+    sns.lineplot(x_range, truncnorm.cdf(x_range, a, b, loc=mu, scale=sig), label='cdf')
     ax.legend()
     return ax
 
@@ -112,7 +113,6 @@ def create_sellers_q_truncnorm(s, parameters):
 
 
 """Default Market Ooperations"""
-
 
 def run_normal_double_auction(buyers_df, sellers_df):
     # define sets and parameter values in indexed tuples
@@ -274,6 +274,8 @@ def get_Huang_mechanism_MCP(buyers_df, sellers_df):
     return buyers_in_merit2, sellers_in_merit2, MCP_buyers, MCP_sellers
 
 
+
+
 def allocation_Huang_mechanism_Q_a(buyers_in_merit, sellers_in_merit):
     '''takes in the agents in merit from function get_Huang_mechanism_MCP and outputs q and d allocation vectors'''
 
@@ -302,7 +304,6 @@ def allocation_Huang_mechanism_Q_a(buyers_in_merit, sellers_in_merit):
             N = len(a_vector)  # number of agents initially within merit
             B_i = oversupply / N
             q_vector = a_vector  # this will keep storing updated allocation until condition is met
-
             def find_q_vector(q_vector, B_i, N, demand):
                 # check if Bi is greater than any value in a_vector, if it is, take out the a_vector and redistribute, do this until all items in a_vector are 0, be careful on the indexing of the vector
                 min_q = min(x for x in q_vector if x != 0)
@@ -326,7 +327,6 @@ def allocation_Huang_mechanism_Q_a(buyers_in_merit, sellers_in_merit):
             N = len(x_vector)  # number of agents initially within merit
             B_j = overdemand / N
             d_vector = x_vector  # this will keep storing updated allocation until condition is met
-
             def find_d_vector(d_vector, B_j, N, supply):
                 # check if Bi is greater than any value in a_vector, if it is, take out the a_vector and redistribute, do this until all items in a_vector are 0, be careful on the indexing of the vector
                 min_d = min(x for x in d_vector if x != 0)
@@ -444,16 +444,20 @@ def update_VCG_prices_and_allocation(prices_buyers, prices_sellers, buyers_df, s
 
     return buyers_df, sellers_df
 
+def update_iteration_MCP(MCP_vector_iteration, MCP_df):
+    MCP_vector =    [{'MCP default': MCP_vector_iteration[0],
+                    'MCP VCG buyers': MCP_vector_iteration[1],
+                    'MCP VCG sellers': MCP_vector_iteration[2],
+                    'MCP Huang buyers': MCP_vector_iteration[3],
+                    'MCP Huang sellers': MCP_vector_iteration[4]}]
+    # append the averaged MCP of iterations to dataframe
+    MCP_df = MCP_df.append(MCP_vector, ignore_index=True, sort=False)
+    return MCP_df
 
-def calculate_mean_MCP(MCP_df, MCP_df_mean):
-    MCP_mean_data = [{  'MCP default': MCP_df.mean().values[0],
-                        'MCP VCG buyers': MCP_df.mean().values[1],
-                        'MCP VCG sellers': MCP_df.mean().values[2],
-                        'MCP Huang buyers': MCP_df.mean().values[3],
-                        'MCP Huang sellers': MCP_df.mean().values[4]}]
-        # append the averaged MCP of iterations to dataframe
-    MCP_df_mean = MCP_df_mean.append(MCP_mean_data, ignore_index=True, sort=False)
-    return MCP_df_mean
+def calculate_BSI():
+    
+    return
+
 
 def calculate_profits_utility(buyers_df, sellers_df, utility_profits_df):
     cent_ut = sum((buyers_df['price'] - buyers_df['Average price']) * buyers_df['Average allocation'])
@@ -480,6 +484,34 @@ def calculate_market_liquidity(sellers_df, quantity_traded_df):
                                         'VCG quantity': VCG_q,
                                         'Huang quantity': Huang_q}, ignore_index=True)
     return quantity_traded_df
+
+def calculate_mean_MCP(MCP_df, MCP_df_mean):
+    MCP_mean_data = [{  'MCP default': MCP_df.mean().values[0],
+                        'MCP VCG buyers': MCP_df.mean().values[1],
+                        'MCP VCG sellers': MCP_df.mean().values[2],
+                        'MCP Huang buyers': MCP_df.mean().values[3],
+                        'MCP Huang sellers': MCP_df.mean().values[4]}]
+        # append the averaged MCP of iterations to dataframe
+    MCP_df_mean = MCP_df_mean.append(MCP_mean_data, ignore_index=True, sort=False)
+    return MCP_df_mean
+
+def df_to_csv(MCP_df, utility_profits_df, quantity_traded_df):
+    results_df = pd.concat([MCP_df, utility_profits_df, quantity_traded_df], axis=1)
+    input_title = input('enter title for csv(use underscores):  ')
+    results_df.to_csv(str(input_title)+'.csv')
+    return
+
+def df_to_csv_auto(MCP_df, utility_profits_df, quantity_traded_df, b, s, total_iterations):
+    results_df = pd.concat([MCP_df, utility_profits_df, quantity_traded_df], axis=1)
+    input_title = 'iterations_'+ str(total_iterations) +'_default_b_'+str(b)+'_s_'+str(s)
+    results_df.to_csv(str(input_title)+'.csv')
+    return
+
+def df_to_csv_RW(MCP_df, utility_profits_df, quantity_traded_df, b, s, total_iterations, hour_counter):
+    results_df = pd.concat([MCP_df, utility_profits_df, quantity_traded_df], axis=1)
+    input_title = 'HR_' + str(hour_counter) + '_iterations_'+ str(total_iterations) +'_default_b_'+str(b)+'_s_'+str(s)
+    results_df.to_csv('C:/Users/Lawrence/Documents/GitHub/Thesis/dataframes/real_world_model/' + str(input_title)+'.csv')
+    return
 
 '''GAME THEORY FUNCTIONS'''
 
