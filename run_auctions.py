@@ -41,8 +41,8 @@ max_q_s:
 '''
 
 '''set number of households'''
-b = 20          #buyers
-s = 80          #sellers
+b = 50          #buyers
+s = 50          #sellers
 n = b+s         #number of households
 
 #define parameters for all distribution functions
@@ -51,7 +51,7 @@ FiT = 0.08      #euro/kWh Feed in Tariff
 
 #param =    [mean, standard dev, lower bound, upper bound] (for now these are all for truncated uniform distributions)
 
-
+'''
 #buyers
 param_b_v = [0.4,   1,    0,      ToU]
 param_b_q = [2,     1,    1,      3]
@@ -68,30 +68,41 @@ param_b_q = [0.5,   1,    0,    1]
 
 #sellers
 param_s_v = [0.5,   1,    0,    1]
-param_s_q = [0.5,   1.5,    0,    1]
-'''
+param_s_q = [0.5,   2,    0,    1]
+
+
 
 """create necessary dataframes"""
 #dataframes used for each iteration
 MCP_df = df_MCP()                               #dataframe (df) for saving the MCP
 utility_profits_df = df_utility_profits()       #create df that keep tracks of Buyers and Sellers utilty and profits over iterations
 quantity_traded_df = df_quantity_traded()       #create df that keep tracks of quantity traded
-eff_df = df_allo_eff()                          #dataframe for calculations for Huang mechanism allocative efficiency (2/14 not important for now)
+market_size_df = df_market_size()               #create df that keeps tracks of buyers and sellers
+#eff_df = df_allo_eff()                          #dataframe for calculations for Huang mechanism allocative efficiency (2/14 not important for now)
 
 #dataframes used for analysis over all iterations
-MCP_df_mean = df_MCP()                          #dataframe for saving the average MCP's over all iterations run
+#MCP_df_mean = df_MCP()                          #dataframe for saving the average MCP's over all iterations run
 #eff_df_mean = df_allo_eff()                     #dataframe for saving the average efficiency over all iterations run (useful only when comparing different number of agents)
 
 """set iterations"""
-total_iterations = 500
+total_iterations = 1
+
+#create matrix for sensitivity analysis
 
 for index in range(total_iterations):
-    # index in dataframe starts from 0 while instance starts from
-    b_v = create_buyers_v_truncnorm(b, param_b_v)
-    b_q = create_buyers_q_truncnorm(b, param_b_q)
 
-    s_v = create_sellers_v_truncnorm(s, param_s_v)
-    s_q = create_sellers_q_truncnorm(s, param_s_q)
+    # index in dataframe starts from 0 while instance starts from
+    #b_v = create_buyers_v_truncnorm(b, param_b_v)
+    #b_q = create_buyers_q_truncnorm(b, param_b_q)
+
+    #s_v = create_sellers_v_truncnorm(s, param_s_v)
+    #s_q = create_sellers_q_truncnorm(s, param_s_q)
+
+    b_v = [9, 8, 7, 6, 3, 2]
+    b_q = [1, 1, 1, 1, 1, 1]
+
+    s_v = [0.5, 2, 3, 4, 5, 6]
+    s_q = [1, 1, 1, 1, 1, 1]
 
     #create buyer and seller dataframes where prices and allocations of each mechanism result will be saved
     buyers_df = df_buyers(b_v, b_q)
@@ -105,7 +116,6 @@ for index in range(total_iterations):
     # updates new column to buyers and sellers df with the social welfare maximizing allocations
     buyers_df, sellers_df = update_deafult_mechanism(buyers_allocation, sellers_allocation,
                                                      buyers_df, sellers_df)
-
 
     #check if any matches are made
     if sum(buyers_df['Average allocation'])==0:
@@ -156,6 +166,9 @@ for index in range(total_iterations):
         # find quantity traded for each mechanism for this iteration
         quantity_traded_df = calculate_market_liquidity(sellers_df, quantity_traded_df)
 
+        # find aggregate supply and demand of market for this iteration and append to df
+        market_size_df = calculate_market_size(sellers_df, buyers_df, market_size_df)
+
         '''
         # find allocative efficiency of Huang mechanism
         eff_Huang = allocative_efficiency_Huang(buyers_df, sellers_df,
@@ -166,20 +179,23 @@ for index in range(total_iterations):
         '''
 
 # find averaged MCP of all iterations ran with same households and same distributions
-MCP_df_mean = calculate_mean_MCP(MCP_df, MCP_df_mean)
+#MCP_df_mean = calculate_mean_MCP(MCP_df, MCP_df_mean)
 
 # save MCP_df, utility_profits_df, quantity_traded_df to a csv file
-df_to_csv(MCP_df, utility_profits_df, quantity_traded_df)
+#df_to_csv(MCP_df, utility_profits_df, quantity_traded_df)
 
-print(sellers_df)
-print(buyers_df)
-print(MCP_df_mean)
-print(MCP_df)
-print(utility_profits_df)
-print(quantity_traded_df)
+#df_to_csv_w_title(MCP_df, utility_profits_df, quantity_traded_df, market_size_df, 'iterations_500_s_q_std_2')
 
-print(b)
-print(s)
+print('buyers df')
+view_df_full(buyers_df)
+print('sellers df')
+view_df_full(sellers_df)
+#view_df_full(MCP_df)
+#view_df_full(utility_profits_df)
+#view_df_full(quantity_traded_df)
+
+#print(b)
+#print(s)
 
 '''
 #prints df in full
@@ -194,4 +210,3 @@ ax.set(xlabel='households (n)', ylabel='allocative efficiency',
                mean_valuation_buyers) + ' cents, sellers = 8 cents')
 plt.savefig('sample_buyers_mean_' + str(mean_valuation_buyers) + '.png')
 '''
-
