@@ -274,10 +274,25 @@ else:
     # find aggregate supply and demand of market for this iteration and append to df
     market_size_df = calculate_market_size(sellers_df, buyers_df, market_size_df)
 
+
 """Return Results back to UserInterface"""
 #print the prices received for each auction:
 user_results = buyers_df.loc[user_index]
 user_savings = (user_true_valuation[hour_counter]-user_results['VCG price'])*user_results['VCG allocation']
 
-#print the market results for each auction
-MarketClearingPrices = [MCP_default, MCP_buyers_VCG, MCP_sellers_VCG, MCP_buyers_Huang, MCP_sellers_Huang]
+print(user_results[1])
+print(user_results[2])
+print(user_results[3])
+print(user_results[4])
+print(user_results[5])
+print(user_results[6])
+print(user_results[7])
+
+print(user_savings)
+
+#print the market clearing prices for each mechanism
+print(MCP_default)
+print(MCP_buyers_VCG)
+print(MCP_sellers_VCG)
+print(MCP_buyers_Huang)
+print(MCP_sellers_Huang)
