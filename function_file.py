@@ -21,6 +21,7 @@ from pyomo.environ import *
 # statistical sampling packages
 from scipy.stats import norm
 from scipy.stats import truncnorm
+from scipy.stats import uniform
 
 '''I/O Dataframes'''
 
@@ -56,6 +57,16 @@ def df_quantity_traded():
                                  'VCG quantity',
                                  'Huang quantity'])
 
+def df_market_size():
+    return pd.DataFrame(columns=['Aggregate Demand',
+                                 'Aggregate Supply'])
+
+def view_df_full(df):
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
+        print(df)
+
+
+
 '''Auction Preparation Dataframes'''
 
 #probability distribution functions
@@ -72,13 +83,26 @@ def visualization_samples(sample):
 def trunc_visualization(parameters):
     [mu, sig, min, max] = parameters
     a, b, = (min - mu) / sig, (max - mu) / sig
-    x_range = np.linspace(min - 1, max + 1, 1000)
+    x_range = np.linspace(0, 1, 1000)
     fig, ax = plt.subplots()
     sns.lineplot(x_range, truncnorm.pdf(x_range, a, b, loc=mu, scale=sig), label='pdf')
     sns.lineplot(x_range, truncnorm.cdf(x_range, a, b, loc=mu, scale=sig), label='cdf')
     ax.legend()
     return ax
 
+def create_samples_uniform(n, parameters):
+    """takes in parameters as a 1x2 vector of lower and uppper bound, generates n number of samples."""
+    lower_bound = parameters[0]
+    upper_bound= parameters[1] - parameters[0]
+    vector = uniform.rvs(size = n, loc = lower_bound, scale = upper_bound)
+    return vector
+
+def create_samples_truncnorm(n, parameters):
+    '''takes in number of buyers, and parameters to create list of valuations based on truncated normal distribution'''
+    [mu_v_b, sig_v_b, min_v, max_v] = parameters
+    a_para, b_para = (min_v - mu_v_b) / sig_v_b, (max_v - mu_v_b) / sig_v_b
+    sample_array = truncnorm.rvs(a_para, b_para, size=n, loc=mu_v_b, scale=sig_v_b)
+    return sample_array
 
 def create_buyers_v_truncnorm(b, parameters):
     '''takes in number of buyers, and parameters to create list of valuations based on truncated normal distribution'''
@@ -410,7 +434,6 @@ def VCG_clarke_pivot_rule(buyers_df, sellers_df, result):
         index_buyers = i
         # find SW without ith buyer's welfare
         buyers_wf_neg = SW - buyers_df.iloc[index_buyers]['Average allocation'] * buyers_df.iloc[index_buyers]['price']
-
         # run DA with ith seller absent
         VCG_buyers_df = buyers_df.drop(index_buyers).reset_index(drop=True)
         buyers_allocation_VCG, s, r_buyers = run_normal_double_auction(VCG_buyers_df, sellers_df)
@@ -476,14 +499,22 @@ def calculate_profits_utility(buyers_df, sellers_df, utility_profits_df):
     return utility_profits_df
 
 def calculate_market_liquidity(sellers_df, quantity_traded_df):
-    averae_q    = sum(sellers_df['Average allocation'])
+    average_q   = sum(sellers_df['Average allocation'])
     VCG_q       = sum(sellers_df['VCG allocation'])
     Huang_q     = sum(sellers_df['Huang allocation'])
 
-    quantity_traded_df = quantity_traded_df.append({'Average quantity': averae_q,
-                                        'VCG quantity': VCG_q,
-                                        'Huang quantity': Huang_q}, ignore_index=True)
+    quantity_traded_df = quantity_traded_df.append({'Average quantity': average_q,
+                                                    'VCG quantity': VCG_q,
+                                                    'Huang quantity': Huang_q}, ignore_index=True)
     return quantity_traded_df
+
+def calculate_market_size(sellers_df, buyers_df, market_size_df):
+    """finds the total quantity put up on the market by both sellers and buys respectively"""
+    sellers_quantity = sum(sellers_df['quantity'])
+    buyers_quantity = sum(buyers_df['quantity'])
+
+    market_size_df = market_size_df.append({'Aggregate Demand': buyers_quantity, 'Aggregate Supply': sellers_quantity}, ignore_index=True)
+    return market_size_df
 
 def calculate_mean_MCP(MCP_df, MCP_df_mean):
     MCP_mean_data = [{  'MCP default': MCP_df.mean().values[0],
@@ -495,22 +526,34 @@ def calculate_mean_MCP(MCP_df, MCP_df_mean):
     MCP_df_mean = MCP_df_mean.append(MCP_mean_data, ignore_index=True, sort=False)
     return MCP_df_mean
 
-def df_to_csv(MCP_df, utility_profits_df, quantity_traded_df):
-    results_df = pd.concat([MCP_df, utility_profits_df, quantity_traded_df], axis=1)
+def df_read_csv(foldername, filename):
+    """for reading results in the form of csv files when saved to dataframe subdirectory"""
+    path = str('C:/Users/Lawrence/Documents/GitHub/Thesis/dataframes/') + foldername + str('/') + filename + str('.csv')
+    df = pd.read_csv(path, index_col=0)
+    return df
+
+def df_to_csv(MCP_df, utility_profits_df, quantity_traded_df, market_size_df):
+    results_df = pd.concat([MCP_df, utility_profits_df, quantity_traded_df, market_size_df], axis=1)
     input_title = input('enter title for csv(use underscores):  ')
     results_df.to_csv(str(input_title)+'.csv')
     return
 
-def df_to_csv_auto(MCP_df, utility_profits_df, quantity_traded_df, b, s, total_iterations):
-    results_df = pd.concat([MCP_df, utility_profits_df, quantity_traded_df], axis=1)
+def df_to_csv_w_title(MCP_df, utility_profits_df, quantity_traded_df, market_size_df, title):
+    results_df = pd.concat([MCP_df, utility_profits_df, quantity_traded_df, market_size_df], axis=1)
+    input_title = str(title)
+    results_df.to_csv(str(input_title)+'.csv')
+    return
+
+def df_to_csv_auto(MCP_df, utility_profits_df, quantity_traded_df, market_size_df, b, s, total_iterations):
+    results_df = pd.concat([MCP_df, utility_profits_df, quantity_traded_df, market_size_df], axis=1)
     input_title = 'iterations_'+ str(total_iterations) +'_default_b_'+str(b)+'_s_'+str(s)
     results_df.to_csv(str(input_title)+'.csv')
     return
 
-def df_to_csv_RW(MCP_df, utility_profits_df, quantity_traded_df, b, s, total_iterations, hour_counter):
-    results_df = pd.concat([MCP_df, utility_profits_df, quantity_traded_df], axis=1)
+def df_to_csv_RW(MCP_df, utility_profits_df, quantity_traded_df, market_size_df, b, s, total_iterations, hour_counter):
+    results_df = pd.concat([MCP_df, utility_profits_df, quantity_traded_df, market_size_df], axis=1)
     input_title = 'HR_' + str(hour_counter) + '_iterations_'+ str(total_iterations) +'_default_b_'+str(b)+'_s_'+str(s)
-    results_df.to_csv('C:/Users/Lawrence/Documents/GitHub/Thesis/dataframes/real_world_model/' + str(input_title)+'.csv')
+    results_df.to_csv('C:/Users/Lawrence/Documents/GitHub/Thesis/dataframes/A4_real_world_model/simulation_3_mean_at_boundaries_population50_100penetration/' + str(input_title)+'.csv')
     return
 
 '''GAME THEORY FUNCTIONS'''
